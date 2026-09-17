@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSC3/DebugSys</title>
+    <style>
+        /* CRITICAL AESTHETIC: Strict, utilitarian, high-density, no-frills, anti-AI design */
+        :root {
+            --bg-base: #000000;
+            --bg-surface: #0a0a0a;
+            --bg-cell-key: #111111;
+            --border-color: #333333;
+            --text-header: #ffffff;
+            --text-key: #888888;
+            --text-value: #dcdcdc;
+            --text-highlight: #00ff00; /* Terminal green for hashes */
+            --text-error: #ff3333;
+            --font-ui: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            --font-data: Consolas, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-value);
+            font-family: var(--font-ui);
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        /* HEADER STYLES */
+        .sys-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .sys-header h1 {
+            font-size: 18px;
+            color: var(--text-header);
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .sys-header .meta {
+            text-align: right;
+            font-family: var(--font-data);
+            font-size: 12px;
+            color: var(--text-key);
+        }
+
+        #live-clock {
+            color: var(--text-header);
+        }
+
+        /* GRID LAYOUT */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 600px) {
+            .grid-container { grid-template-columns: 1fr; }
+        }
+
+        /* TABLE STYLES */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border-color);
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: var(--bg-surface);
+            color: var(--text-header);
+            font-family: var(--font-ui);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            font-family: var(--font-data);
+            word-break: break-all;
+        }
+
+        td.key-cell {
+            width: 35%;
+            background-color: var(--bg-cell-key);
+            color: var(--text-key);
+        }
+
+        td.val-cell {
+            width: 65%;
+            color: var(--text-value);
+        }
+
+        .val-hash {
+            color: var(--text-highlight);
+        }
+        
+        .val-error {
+            color: var(--text-error);
+        }
+
+        /* SUPER HASH BANNER */
+        .super-hash-container {
+            margin-top: 16px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-surface);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .super-hash-container .label {
+            font-family: var(--font-ui);
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-header);
+            text-transform: uppercase;
+        }
+
+        .super-hash-container .value {
+            font-family: var(--font-data);
+            font-size: 18px;
+            color: var(--text-highlight);
+            letter-spacing: 2px;
+        }
+
+        button {
+            background-color: var(--bg-cell-key);
+            color: var(--text-value);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            font-family: var(--font-ui);
+            font-size: 11px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: var(--border-color);
+            color: var(--text-header);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="sys-header">
+        <h1>BSC3/DebugSys</h1>
+        <div class="meta">
+            <div>INIT: <span id="init-stamp"></span></div>
+            <div>SYS_TIME: <span id="live-clock"></span></div>
+            <button onclick="dumpData()" style="margin-top:4px;">Export JSON</button>
+        </div>
+    </header>
+
+    <div class="grid-container" id="dashboard-grid">
+        <!-- Tables will be dynamically injected here -->
+    </div>
+
+    <div class="super-hash-container" id="super-hash-panel" style="display: none;">
+        <span class="label">Combined Device UID:</span>
+        <span class="value" id="super-hash-value">CALCULATING...</span>
+    </div>
+
+    <script>
+        
+        // Fast, 53-bit string hash function (cyrb53) returning Hex string
+        const hashString = function(str, seed = 0) {
+            let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+            for (let i = 0, ch; i < str.length; i++) {
+                ch = str.charCodeAt(i);
+                h1 = Math.imul(h1 ^ ch, 2654435761);
+                h2 = Math.imul(h2 ^ ch, 1597334677);
+            }
+            h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+            h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+            const num = 4294967296 * (2097151 & h2) + (h1>>>0);
+            return num.toString(16).padStart(14, '0').toUpperCase();
+        };
+
+        const SYS_DATA = {}; // Global store for extraction
+
+        // Live Clock
+        document.getElementById('init-stamp').innerText = new Date().toISOString();
+        setInterval(() => {
+            document.getElementById('live-clock').innerText = new Date().toISOString();
+        }, 1000);
+
+        
+        function extractSystem() {
+            return {
+                "User Agent": navigator.userAgent,
+                "Platform": navigator.platform || "N/A",
+                "App Name": navigator.appName,
+                "App CodeName": navigator.appCodeName,
+                "Vendor": navigator.vendor || "N/A",
+                "Languages": navigator.languages ? navigator.languages.join(", ") : navigator.language,
+                "Hardware Concurrency": navigator.hardwareConcurrency ? navigator.hardwareConcurrency + " cores" : "N/A",
+                "Device Memory": navigator.deviceMemory ? navigator.deviceMemory + " GB" : "N/A",
+                "Max Touch Points": navigator.maxTouchPoints || 0,
+                "Cookies Enabled": navigator.cookieEnabled,
+                "Do Not Track": navigator.doNotTrack === "1" ? "True" : (navigator.doNotTrack === "0" ? "False" : "Unspecified"),
+                "Build ID": navigator.productSub || "N/A",
+                "WebDriver": navigator.webdriver ? "True" : "False"
+            };
+        }
+
+        function extractDisplay() {
+            return {
+                "Total Resolution": `${window.screen.width}x${window.screen.height}`,
+                "Available Res": `${window.screen.availWidth}x${window.screen.availHeight}`,
+                "Color Depth": `${window.screen.colorDepth}-bit`,
+                "Pixel Depth": `${window.screen.pixelDepth}-bit`,
+                "Device Pixel Ratio": window.devicePixelRatio || "N/A",
+                "Orientation": (window.screen.orientation && window.screen.orientation.type) || "N/A",
+                "Window Inner Dims": `${window.innerWidth}x${window.innerHeight}`,
+                "Window Outer Dims": `${window.outerWidth}x${window.outerHeight}`
+            };
+        }
+
+        function extractWebGL() {
+            const data = {
+                "WebGL Support": "False",
+                "Vendor": "N/A",
+                "Renderer": "N/A",
+                "Unmasked Vendor": "N/A",
+                "Unmasked Renderer": "N/A",
+                "Shading Language": "N/A",
+                "Max Texture Size": "N/A",
+                "Max Viewport Dims": "N/A",
+                "WebGL Fingerprint": "N/A"
+            };
+            
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    data["WebGL Support"] = "True";
+                    data["Vendor"] = gl.getParameter(gl.VENDOR);
+                    data["Renderer"] = gl.getParameter(gl.RENDERER);
+                    data["Shading Language"] = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+                    data["Max Texture Size"] = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+                    
+                    const viewport = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+                    if(viewport) data["Max Viewport Dims"] = `${viewport[0]}x${viewport[1]}`;
+
+                    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (ext) {
+                        data["Unmasked Vendor"] = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL);
+                        data["Unmasked Renderer"] = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+                    }
+                    
+                    // Hash WebGL specifics
+                    data["WebGL Fingerprint"] = hashString(JSON.stringify(data));
+                }
+            } catch (e) {
+                data["WebGL Support"] = "Error: " + e.message;
+            }
+            return data;
+        }
+
+        function extractNetwork() {
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            if (conn) {
+                return {
+                    "Connection API": "Supported",
+                    "Type": conn.type || "N/A",
+                    "Effective Type": conn.effectiveType || "N/A",
+                    "Downlink Max": conn.downlinkMax ? `${conn.downlinkMax} Mbps` : "N/A",
+                    "Downlink": conn.downlink ? `${conn.downlink} Mbps` : "N/A",
+                    "RTT": conn.rtt ? `${conn.rtt} ms` : "N/A",
+                    "Save Data": conn.saveData ? "Enabled" : "Disabled"
+                };
+            }
+            return { "Connection API": "Unsupported" };
+        }
+
+        function extractTimeLocale() {
+            const date = new Date();
+            const format = Intl.DateTimeFormat();
+            return {
+                "Timezone": format.resolvedOptions().timeZone || "N/A",
+                "Locale": format.resolvedOptions().locale || "N/A",
+                "UTC Offset": `${-date.getTimezoneOffset() / 60} hours`,
+                "Intl Calendar": format.resolvedOptions().calendar || "N/A"
+            };
+        }
+
+        async function extractBattery() {
+            try {
+                if ('getBattery' in navigator) {
+                    const battery = await navigator.getBattery();
+                    return {
+                        "API Support": "True",
+                        "Charging": battery.charging ? "True" : "False",
+                        "Level": `${Math.round(battery.level * 100)}%`,
+                        "Time To Full": battery.chargingTime === Infinity ? "Infinity" : `${battery.chargingTime}s`,
+                        "Time To Empty": battery.dischargingTime === Infinity ? "Infinity" : `${battery.dischargingTime}s`
+                    };
+                } else {
+                    return { "API Support": "Unsupported (Deprecated in browser)" };
+                }
+            } catch (e) {
+                return { "API Support": "Restricted/Error" };
+            }
+        }
+
+        async function extractMediaSensors() {
+            const result = { "API Support": "Unsupported" };
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    result["API Support"] = "True";
+                    result["Total Devices"] = devices.length;
+                    
+                    let audioIn = 0, audioOut = 0, videoIn = 0, other = 0;
+                    devices.forEach(d => {
+                        if (d.kind === 'audioinput') audioIn++;
+                        else if (d.kind === 'audiooutput') audioOut++;
+                        else if (d.kind === 'videoinput') videoIn++;
+                        else other++;
+                    });
+                    
+                    result["Audio Inputs"] = audioIn;
+                    result["Audio Outputs"] = audioOut;
+                    result["Video Inputs"] = videoIn;
+                    result["Other Devices"] = other;
+                }
+            } catch (e) {
+                result["API Support"] = "Restricted/Error";
+            }
+            return result;
+        }
+
+
+        function extractCanvasFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 280;
+                canvas.height = 60;
+                const ctx = canvas.getContext('2d');
+                if(!ctx) return { "Status": "2D Context Unavailable" };
+
+                // Background
+                ctx.fillStyle = "rgb(128, 128, 128)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Text rendering (highly browser/OS specific font rendering)
+                ctx.textBaseline = "alphabetic";
+                ctx.fillStyle = "#f60";
+                ctx.font = "14px 'Arial'";
+                ctx.fillText("BSC3-SYS-DEBUG 123! ~", 2, 15);
+                ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+                ctx.font = "18px 'Times New Roman'";
+                ctx.fillText("https://bsc3.local/debug", 4, 45);
+
+                // Geometry and blending
+                ctx.globalCompositeOperation = "multiply";
+                ctx.fillStyle = "rgb(255,0,255)";
+                ctx.beginPath();
+                ctx.arc(50, 30, 20, 0, Math.PI * 2, true);
+                ctx.fill();
+                ctx.fillStyle = "rgb(0,255,255)";
+                ctx.beginPath();
+                ctx.arc(70, 30, 20, 0, Math.PI * 2, true);
+                ctx.fill();
+
+                const dataURL = canvas.toDataURL("image/png");
+                const hash = hashString(dataURL);
+
+                return {
+                    "Data URL Length": `${dataURL.length} bytes`,
+                    "Canvas Fingerprint": hash
+                };
+            } catch (e) {
+                return { "Status": "Error generating canvas", "Canvas Fingerprint": "ERROR" };
+            }
+        }
+
+        async function extractAudioFingerprint() {
+            try {
+                const AudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+                if (!AudioContext) return { "Status": "API Unsupported", "Audio Fingerprint": "N/A" };
+                
+                const context = new AudioContext(1, 44100, 44100); // 1 channel, 44.1kHz, 1 second
+                
+                const oscillator = context.createOscillator();
+                oscillator.type = 'triangle';
+                oscillator.frequency.value = 10000;
+                
+                const compressor = context.createDynamicsCompressor();
+                compressor.threshold.value = -50;
+                compressor.knee.value = 40;
+                compressor.ratio.value = 12;
+                compressor.reduction.value = -20;
+                compressor.attack.value = 0;
+                compressor.release.value = 0.25;
+                
+                oscillator.connect(compressor);
+                compressor.connect(context.destination);
+                oscillator.start(0);
+                
+                const buffer = await context.startRendering();
+                const data = buffer.getChannelData(0);
+                
+                // Sample data points to generate hash
+                let strData = "";
+                for (let i = 4500; i < 5000; i += 5) {
+                    strData += Math.abs(data[i]).toString();
+                }
+                
+                return {
+                    "Status": "Generated Successfully",
+                    "Audio Fingerprint": hashString(strData)
+                };
+            } catch (e) {
+                return { "Status": "Blocked/Error", "Audio Fingerprint": "ERROR" };
+            }
+        }
+
+
+        function renderTable(title, dataObj) {
+            const grid = document.getElementById('dashboard-grid');
+            let rowsHtml = '';
+            
+            for (const [key, value] of Object.entries(dataObj)) {
+                let displayVal = String(value);
+                let valClass = "val-cell";
+                
+                // Apply specific classes for aesthetics
+                if (key.includes("Fingerprint") || key.includes("Hash")) {
+                    valClass += " val-hash";
+                }
+                if (displayVal.includes("Error") || displayVal.includes("Restricted") || displayVal === "Unsupported") {
+                    valClass += " val-error";
+                }
+
+                rowsHtml += `
+                    <tr>
+                        <td class="key-cell">${key}</td>
+                        <td class="${valClass}">${displayVal}</td>
+                    </tr>
+                `;
+            }
+
+            const tableHtml = `
+                <table id="tbl-${title.replace(/\s+/g, '-')}">
+                    <thead>
+                        <tr>
+                            <th colspan="2">${title}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            `;
+            
+            grid.insertAdjacentHTML('beforeend', tableHtml);
+        }
+
+        function calculateSuperHash() {
+            // Combine specific stable fingerprints for a super hash
+            const c_hash = SYS_DATA["Advanced Fingerprinting"]["Canvas Fingerprint"] || "";
+            const a_hash = SYS_DATA["Audio Fingerprinting"]["Audio Fingerprint"] || "";
+            const w_hash = SYS_DATA["Hardware & Graphics"]["WebGL Fingerprint"] || "";
+            const ua = SYS_DATA["System & Browser"]["User Agent"] || "";
+            const res = SYS_DATA["Display & Screen"]["Total Resolution"] || "";
+            const tz = SYS_DATA["Time & Locale"]["Timezone"] || "";
+
+            const rawString = `${c_hash}|${a_hash}|${w_hash}|${ua}|${res}|${tz}`;
+            const superHash = hashString(rawString);
+            
+            const panel = document.getElementById('super-hash-panel');
+            const valueSpan = document.getElementById('super-hash-value');
+            valueSpan.innerText = `[ ${superHash} ]`;
+            panel.style.display = 'flex';
+        }
+
+
+        async function initDashboard() {
+            const grid = document.getElementById('dashboard-grid');
+            grid.innerHTML = ''; // Clear
+
+            // 1. Synchronous Data Extraction
+            SYS_DATA["System & Browser"] = extractSystem();
+            SYS_DATA["Display & Screen"] = extractDisplay();
+            SYS_DATA["Hardware & Graphics"] = extractWebGL();
+            SYS_DATA["Network Configuration"] = extractNetwork();
+            SYS_DATA["Time & Locale"] = extractTimeLocale();
+            SYS_DATA["Advanced Fingerprinting"] = extractCanvasFingerprint();
+
+            // Render Sync Tables
+            for (const [title, data] of Object.entries(SYS_DATA)) {
+                renderTable(title, data);
+            }
+
+            // 2. Asynchronous Data Extraction
+            try {
+                const batteryData = await extractBattery();
+                SYS_DATA["Power / Battery"] = batteryData;
+                renderTable("Power / Battery", batteryData);
+            } catch(e) {}
+
+            try {
+                const mediaData = await extractMediaSensors();
+                SYS_DATA["Media Devices"] = mediaData;
+                renderTable("Media Devices", mediaData);
+            } catch(e) {}
+
+            try {
+                const audioData = await extractAudioFingerprint();
+                SYS_DATA["Audio Fingerprinting"] = audioData;
+                renderTable("Audio Fingerprinting", audioData);
+            } catch(e) {}
+
+            // 3. Final Compute
+            calculateSuperHash();
+        }
+
+        function dumpData() {
+            const dataStr = JSON.stringify(SYS_DATA, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `BSC3_Dump_${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Boot
+        window.addEventListener('DOMContentLoaded', initDashboard);
+        window.addEventListener('resize', () => {
+            // Update only inner window dims dynamically if resized
+            const dims = `${window.innerWidth}x${window.innerHeight}`;
+            SYS_DATA["Display & Screen"]["Window Inner Dims"] = dims;
+            // Force re-render of just that table could be done, but omitted for strict static feel unless refreshed
+        });
+
+    </script>
+</body>
+</html>

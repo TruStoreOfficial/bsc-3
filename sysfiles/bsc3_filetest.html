@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSC3/FileTest</title>
+    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
+    
+    <style>
+        /* CRITICAL AESTHETIC: Strict, utilitarian, high-density, no-frills, anti-AI design */
+        :root {
+            --bg-base: #000000;
+            --bg-surface: #0a0a0a;
+            --bg-cell-key: #111111;
+            --border-color: #333333;
+            --border-highlight: #555555;
+            --text-header: #ffffff;
+            --text-key: #888888;
+            --text-value: #dcdcdc;
+            --text-highlight: #00ff00; /* Terminal green */
+            --text-warning: #ffcc00; /* Yellow */
+            --text-error: #ff3333;    /* Red */
+            --font-ui: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            --font-data: Consolas, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-value);
+            font-family: var(--font-ui);
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        /* HEADER STYLES */
+        .sys-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .sys-header h1 {
+            font-size: 18px;
+            color: var(--text-header);
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-family: var(--font-data);
+        }
+
+        .sys-header .meta {
+            text-align: right;
+            font-family: var(--font-data);
+            font-size: 12px;
+            color: var(--text-key);
+        }
+
+        /* INPUT ZONE STYLES */
+        #drop-zone {
+            border: 2px dashed var(--border-color);
+            background-color: var(--bg-surface);
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: background-color 0.1s, border-color 0.1s;
+        }
+        
+        #drop-zone:hover, #drop-zone.dragover {
+            background-color: #1a1a1a;
+            border-color: var(--border-highlight);
+        }
+
+        #drop-zone input[type="file"] {
+            display: none;
+        }
+
+        .drop-label {
+            font-family: var(--font-data);
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-header);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .drop-subtext {
+            font-family: var(--font-data);
+            font-size: 11px;
+            color: var(--text-key);
+            margin-top: 8px;
+        }
+
+        /* GRID LAYOUT */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 600px) {
+            .grid-container { grid-template-columns: 1fr; }
+        }
+
+        /* TABLE STYLES */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border-color);
+            table-layout: fixed;
+            margin-bottom: 16px;
+            background-color: var(--bg-surface);
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: var(--border-color);
+            color: var(--text-header);
+            font-family: var(--font-data);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            font-family: var(--font-data);
+            word-break: break-all;
+            font-size: 12px;
+        }
+
+        td.key-cell {
+            width: 35%;
+            background-color: var(--bg-cell-key);
+            color: var(--text-key);
+        }
+
+        td.val-cell {
+            width: 65%;
+            color: var(--text-value);
+        }
+
+        .val-highlight { color: var(--text-highlight); font-weight: bold; }
+        .val-warning { color: var(--text-warning); font-weight: bold; }
+        .val-error { color: var(--text-error); font-weight: bold; }
+
+        /* HIDDEN TESTING ELEMENTS */
+        #test-sandbox {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="sys-header">
+        <h1>BSC3/FileTest</h1>
+        <div class="meta">
+            <div>SYS_STATUS: <span id="sys-status" class="val-highlight">IDLE</span></div>
+            <div>MODE: DEEP_ANALYSIS</div>
+        </div>
+    </header>
+
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="drop-label">>_ SELECT OR DROP PAYLOAD HERE</div>
+        <div class="drop-subtext">LOCAL BROWSER EXECUTION ONLY. NO NETWORK UPLOAD REQUIRED.</div>
+        <input type="file" id="file-input">
+    </div>
+
+    <div class="grid-container" id="results-grid">
+        
+        <!-- Table 1: Basic Information -->
+        <table id="tbl-basic">
+            <thead><tr><th colspan="2">SYS_BASIC_INFO</th></tr></thead>
+            <tbody id="tbody-basic">
+                <!-- Rows injected dynamically -->
+            </tbody>
+        </table>
+
+        <!-- Table 2: Binary Signature & Corruption Analysis -->
+        <table id="tbl-binary">
+            <thead><tr><th colspan="2">BIN_SIG_ANALYSIS & INTEGRITY</th></tr></thead>
+            <tbody id="tbody-binary">
+                <!-- Rows injected dynamically -->
+            </tbody>
+        </table>
+
+        <!-- Table 3: Embed Testing (Strictly enforced one-row injection) -->
+        <table id="tbl-embed">
+            <thead><tr><th colspan="2">SYS_EMBED_TEST</th></tr></thead>
+            <tbody id="tbody-embed">
+                <!-- Strict single row targeted by ID -->
+                <tr id="sys-embed-test-row">
+                    <td class="key-cell">Embed Policy</td>
+                    <td class="val-cell" id="sys-embed-val">AWAITING PAYLOAD...</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Table 4: EXIF & Deep Metadata -->
+        <table id="tbl-meta">
+            <thead><tr><th colspan="2">META_EXIF_EXTRACTION</th></tr></thead>
+            <tbody id="tbody-meta">
+                <!-- Rows injected dynamically -->
+            </tbody>
+        </table>
+
+    </div>
+
+    <div id="test-sandbox">
+        <!-- Hidden elements for integrity/embed testing without visual interference -->
+        <img id="sandbox-img" alt="sandbox-test">
+        <audio id="sandbox-audio"></audio>
+        <video id="sandbox-video"></video>
+        <iframe id="sandbox-iframe"></iframe>
+    </div>
+
+    <script>
+        // DOM Elements
+        const DOM = {
+            dropZone: document.getElementById('drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            status: document.getElementById('sys-status'),
+            tbodies: {
+                basic: document.getElementById('tbody-basic'),
+                binary: document.getElementById('tbody-binary'),
+                meta: document.getElementById('tbody-meta')
+            },
+            sandbox: {
+                img: document.getElementById('sandbox-img'),
+                audio: document.getElementById('sandbox-audio'),
+                video: document.getElementById('sandbox-video'),
+                iframe: document.getElementById('sandbox-iframe')
+            },
+            embedVal: document.getElementById('sys-embed-val')
+        };
+
+        // Standard Magic Bytes mapping for file signature detection
+        const MAGIC_BYTES = {
+            "FFD8FF": { type: "image/jpeg", ext: "jpg/jpeg" },
+            "89504E47": { type: "image/png", ext: "png" },
+            "47494638": { type: "image/gif", ext: "gif" },
+            "25504446": { type: "application/pdf", ext: "pdf" },
+            "504B0304": { type: "application/zip", ext: "zip/apk/docx/xlsx/epub" },
+            "52617221": { type: "application/x-rar-compressed", ext: "rar" },
+            "4D5A": { type: "application/x-msdownload", ext: "exe/dll" },
+            "494433": { type: "audio/mpeg", ext: "mp3" }, 
+            "FFFb": { type: "audio/mpeg", ext: "mp3" }, 
+            "FFF3": { type: "audio/mpeg", ext: "mp3" }, 
+            "FFF2": { type: "audio/mpeg", ext: "mp3" }, 
+            "52494646": { type: "audio/wav", ext: "wav/avi/webp" }, 
+            "4F676753": { type: "audio/ogg", ext: "ogg/ogv" },
+            "1A45DFA3": { type: "video/webm", ext: "webm/mkv" },
+            "38425053": { type: "image/vnd.adobe.photoshop", ext: "psd" },
+            "000001BA": { type: "video/mpeg", ext: "mpg/mpeg" },
+            "000001B3": { type: "video/mpeg", ext: "mpg/mpeg" },
+            "7B22": { type: "application/json", ext: "json" }, // {"
+            "3C3F786D": { type: "application/xml", ext: "xml" } // <?xm
+        };
+
+        let activeTestId = 0; // Prevent race conditions from previous uploads
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Robust row updater (Prevents duplicate rows by checking ID)
+        function updateRow(tbodyId, rowId, key, value, cssClass = "val-cell") {
+            const tbody = document.getElementById(tbodyId);
+            let row = document.getElementById(rowId);
+            
+            if (!row) {
+                row = document.createElement('tr');
+                row.id = rowId;
+                tbody.appendChild(row);
+            }
+            
+            row.innerHTML = `
+                <td class="key-cell">${key}</td>
+                <td class="${cssClass}">${value}</td>
+            `;
+        }
+
+        // Clean tables for new analysis
+        function clearTables() {
+            DOM.tbodies.basic.innerHTML = '';
+            DOM.tbodies.binary.innerHTML = '';
+            DOM.tbodies.meta.innerHTML = '';
+            DOM.embedVal.className = "val-cell";
+            DOM.embedVal.innerText = "PROCESSING...";
+        }
+
+        DOM.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            DOM.dropZone.classList.add('dragover');
+        });
+
+        DOM.dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            DOM.dropZone.classList.remove('dragover');
+        });
+
+        DOM.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            DOM.dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                executeAnalysis(e.dataTransfer.files[0]);
+            }
+        });
+
+        DOM.fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                executeAnalysis(e.target.files[0]);
+            }
+        });
+
+        async function executeAnalysis(file) {
+            activeTestId++; 
+            const currentTestId = activeTestId;
+            
+            clearTables();
+            DOM.status.innerText = "ANALYZING...";
+            DOM.status.className = "val-warning";
+
+            const fileUrl = URL.createObjectURL(file);
+
+            // 1. Basic Info
+            extractBasicInfo(file);
+
+            // 2. Binary & Spoof Analysis
+            const hexBuffer = await readMagicBytes(file);
+            const binaryResult = analyzeBinary(file, hexBuffer);
+
+            // 3. Corruption Check (Media Parsing)
+            await testCorruption(fileUrl, file.type || binaryResult.detectedType, currentTestId);
+
+            // 4. Sys_embed_test (STRICT ONE ROW ENFORCEMENT)
+            await testEmbed(fileUrl, currentTestId);
+
+            // 5. EXIF / Location Extraction
+            await extractMetadata(file);
+
+            // Finish
+            if (currentTestId === activeTestId) {
+                DOM.status.innerText = "COMPLETE";
+                DOM.status.className = "val-highlight";
+                setTimeout(() => URL.revokeObjectURL(fileUrl), 5000); // Cleanup Blob URI
+            }
+        }
+
+        function extractBasicInfo(file) {
+            updateRow('tbody-basic', 'basic-name', 'File Name', file.name);
+            updateRow('tbody-basic', 'basic-size', 'File Size', `${formatBytes(file.size)} (${file.size} B)`);
+            updateRow('tbody-basic', 'basic-mime', 'Reported MIME (OS)', file.type || "NONE/UNKNOWN", file.type ? "val-cell" : "val-warning");
+            updateRow('tbody-basic', 'basic-created', 'Last Modified', new Date(file.lastModified).toISOString());
+        }
+
+        function readMagicBytes(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const uint = new Uint8Array(e.target.result);
+                    let hexString = '';
+                    for (let i = 0; i < uint.length; i++) {
+                        let hex = uint[i].toString(16).toUpperCase();
+                        if (hex.length < 2) hex = '0' + hex;
+                        hexString += hex;
+                    }
+                    resolve(hexString);
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file.slice(0, 32)); // Read first 32 bytes
+            });
+        }
+
+        function analyzeBinary(file, hexBuffer) {
+            let detectedType = "UNKNOWN";
+            let detectedExt = "UNKNOWN";
+            let matchSig = "NONE";
+
+            // MP4 Special case (ftyp at offset 4)
+            if (hexBuffer.substring(8, 16) === "66747970") { 
+                detectedType = "video/mp4";
+                detectedExt = "mp4";
+                matchSig = hexBuffer.substring(8, 16) + " (ftyp offset)";
+            } else {
+                for (const [sig, info] of Object.entries(MAGIC_BYTES)) {
+                    if (hexBuffer.startsWith(sig)) {
+                        detectedType = info.type;
+                        detectedExt = info.ext;
+                        matchSig = sig;
+                        break;
+                    }
+                }
+            }
+
+            // Spoof Detection
+            let spoofStatus = "PASS - Type aligns with OS reporting";
+            let spoofClass = "val-highlight";
+            let reportedMime = (file.type || "").toLowerCase();
+            
+            if (reportedMime && detectedType !== "UNKNOWN") {
+                const baseReported = reportedMime.split('/')[0];
+                const baseDetected = detectedType.split('/')[0];
+                
+                if (reportedMime !== detectedType) {
+                     if (baseReported === baseDetected) {
+                         spoofStatus = "WARNING - Subtype mismatch, base media type aligns.";
+                         spoofClass = "val-warning";
+                     } else if (detectedType === "application/zip" && (reportedMime.includes("document") || reportedMime.includes("sheet") || reportedMime.includes("presentation"))) {
+                         spoofStatus = "PASS - Archive identified as MS Office/Document format.";
+                         spoofClass = "val-highlight";
+                     } else if (detectedType === "audio/wav" && reportedMime === "image/webp") {
+                         spoofStatus = "PASS - RIFF container verified.";
+                         spoofClass = "val-highlight";
+                     } else {
+                         spoofStatus = `FAIL - SPOOF DETECTED. Ext expects ${reportedMime}, Binary acts as ${detectedType}`;
+                         spoofClass = "val-error";
+                     }
+                }
+            } else if (!reportedMime) {
+                spoofStatus = "WARNING - No OS MIME. Relying completely on binary header.";
+                spoofClass = "val-warning";
+            }
+
+            updateRow('tbody-binary', 'bin-hex', 'Header (Hex 32)', hexBuffer.substring(0, 32).match(/.{1,8}/g)?.join(" ") || hexBuffer);
+            updateRow('tbody-binary', 'bin-sig', 'Matched Signature', matchSig, matchSig !== "NONE" ? "val-highlight" : "val-warning");
+            updateRow('tbody-binary', 'bin-mime', 'Detected Type (Magic)', detectedType);
+            updateRow('tbody-binary', 'bin-spoof', 'Spoof Evaluation', spoofStatus, spoofClass);
+            
+            return { detectedType, hexBuffer };
+        }
+
+        async function extractMetadata(file) {
+            try {
+                // 'exifr' parses headers thoroughly for JPEG, HEIC, PNG, TIFF, WEBP
+                const output = await exifr.parse(file, true); 
+                
+                if (output) {
+                    updateRow('tbody-meta', 'meta-status', 'Extraction Engine', 'SUCCESS - EXIF/XMP Data Parsed', 'val-highlight');
+                    
+                    if (output.Make || output.Model) {
+                        updateRow('tbody-meta', 'meta-hw', 'Hardware Origin', `${output.Make || ''} ${output.Model || ''}`.trim(), 'val-highlight');
+                    }
+                    if (output.DateTimeOriginal || output.CreateDate) {
+                        updateRow('tbody-meta', 'meta-date', 'Original Timestamp', String(output.DateTimeOriginal || output.CreateDate));
+                    }
+                    if (output.latitude && output.longitude) {
+                        updateRow('tbody-meta', 'meta-gps', 'GPS Geolocation', `${output.latitude.toFixed(6)}, ${output.longitude.toFixed(6)}`, 'val-error');
+                    }
+                    if (output.Software) {
+                        updateRow('tbody-meta', 'meta-sw', 'Software Editor', output.Software);
+                    }
+                    
+                    let count = 0;
+                    for (const [k, v] of Object.entries(output)) {
+                        if (['latitude', 'longitude', 'Make', 'Model', 'Software'].includes(k)) continue;
+                        if (typeof v !== 'object' && v !== null && count < 15) {
+                            updateRow('tbody-meta', `meta-raw-${count}`, `[RAW] ${k}`, String(v).substring(0, 80));
+                            count++;
+                        }
+                    }
+                } else {
+                    updateRow('tbody-meta', 'meta-status', 'Extraction Engine', 'NO COMPATIBLE METADATA FOUND', 'val-cell');
+                }
+            } catch (err) {
+                updateRow('tbody-meta', 'meta-status', 'Extraction Engine', `PARSER ERROR / UNSUPPORTED: ${err.message}`, 'val-warning');
+            }
+        }
+
+        function testCorruption(url, mimeType, testId) {
+            return new Promise((resolve) => {
+                if (testId !== activeTestId) return resolve();
+                
+                let mediaType = null;
+                if (mimeType.startsWith('image/')) mediaType = 'img';
+                else if (mimeType.startsWith('audio/')) mediaType = 'audio';
+                else if (mimeType.startsWith('video/')) mediaType = 'video';
+
+                if (!mediaType) {
+                    updateRow('tbody-binary', 'bin-corrupt', 'Corruption Check', 'SKIPPED - Not a standard browser media file', 'val-cell');
+                    return resolve();
+                }
+
+                const el = DOM.sandbox[mediaType];
+                
+                const onLoad = () => {
+                    if (testId === activeTestId) {
+                        updateRow('tbody-binary', 'bin-corrupt', 'Corruption Check', 'PASS - Browser successfully decoded payload', 'val-highlight');
+                    }
+                    clean();
+                };
+
+                const onError = () => {
+                    if (testId === activeTestId) {
+                        updateRow('tbody-binary', 'bin-corrupt', 'Corruption Check', 'FAIL - FORMAT CORRUPTION OR SPOOFED EXTENSION', 'val-error');
+                    }
+                    clean();
+                };
+
+                const clean = () => {
+                    el.removeEventListener(mediaType === 'img' ? 'load' : 'loadedmetadata', onLoad);
+                    el.removeEventListener('error', onError);
+                    el.src = ''; 
+                    resolve();
+                };
+
+                el.addEventListener(mediaType === 'img' ? 'load' : 'loadedmetadata', onLoad);
+                el.addEventListener('error', onError);
+                el.src = url;
+            });
+        }
+
+        function testEmbed(url, testId) {
+            return new Promise((resolve) => {
+                if (testId !== activeTestId) return resolve();
+                
+                const iframe = DOM.sandbox.iframe;
+                let isHandled = false; // Strictly enforces single execution path per test
+
+                const setEmbedResult = (msg, cssClass) => {
+                    if (isHandled || testId !== activeTestId) return;
+                    isHandled = true;
+                    DOM.embedVal.innerText = msg;
+                    DOM.embedVal.className = `val-cell ${cssClass}`;
+                    
+                    iframe.removeEventListener('load', onLoad);
+                    iframe.removeEventListener('error', onError);
+                    iframe.src = '';
+                    resolve();
+                };
+
+                const onLoad = () => setEmbedResult('ALLOWED - DOM permitted inline embedding', 'val-highlight');
+                const onError = () => setEmbedResult('BLOCKED - Sandbox restriction or fatal policy error', 'val-error');
+
+                // Fallback timeout in case iframe fails to fire events on silent blocks
+                const fallbackTimeout = setTimeout(() => {
+                    setEmbedResult('TIMEOUT / RESTRICTED - Element failed to mount payload', 'val-warning');
+                }, 1500);
+
+                iframe.addEventListener('load', () => { clearTimeout(fallbackTimeout); onLoad(); });
+                iframe.addEventListener('error', () => { clearTimeout(fallbackTimeout); onError(); });
+                
+                // Trigger attempt
+                iframe.src = url;
+            });
+        }
+    </script>
+</body>
+</html>
