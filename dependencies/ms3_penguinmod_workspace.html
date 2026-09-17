@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS3 | PenguinMod Workspace</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #080c14; overflow: hidden; }
+        .top-bar { background-color: #0b0f19; border-bottom: 1px solid #1f2937; }
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1em;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- Top Control Bar -->
+    <div class="top-bar h-14 flex items-center px-4 justify-between shrink-0 shadow-md z-10">
+        <div class="flex items-center gap-4">
+            <!-- Back to Hub Button -->
+            <a href="index.html" class="flex items-center gap-2 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors no-underline">
+                <i class="fa-solid fa-arrow-left"></i> MS3 Hub
+            </a>
+            
+            <div class="w-px h-6 bg-slate-700"></div>
+            
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-cubes text-indigo-400"></i>
+                <span class="font-semibold text-sm text-slate-200">PenguinMod Engine</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <label for="engine-select" class="text-xs text-slate-400 font-medium">Source:</label>
+            <select id="engine-select" class="text-sm bg-slate-900 text-slate-200 pl-3 pr-10 py-1.5 rounded-lg border border-slate-700 outline-none focus:border-indigo-500 cursor-pointer transition shadow-sm">
+                <option value="https://studio.penguinmod.com/editor.html">PenguinMod Studio</option>
+                <option value="https://mirror.turbowarp.xyz/editor/">Turbowarp Mirror</option>
+                <option value="https://snail-ide.com/editor/">Snail IDE</option>
+            </select>
+            <button id="external-btn" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5 font-medium" title="Open official Turbowarp editor in popup">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Official TW
+            </button>
+        </div>
+    </div>
+
+    <!-- Workspace Area -->
+    <div class="flex-1 w-full bg-black relative">
+        <iframe 
+            id="workspace-frame"
+            src="https://studio.penguinmod.com/editor.html" 
+            allowtransparency="true" 
+            class="absolute inset-0 w-full h-full border-0"
+            allowfullscreen>
+        </iframe>
+    </div>
+
+    <script>
+        // Engine Switcher Logic
+        const engineSelect = document.getElementById('engine-select');
+        const frame = document.getElementById('workspace-frame');
+        
+        engineSelect.addEventListener('change', (e) => {
+            frame.src = e.target.value;
+        });
+
+        // External Official Turbowarp Popup
+        document.getElementById('external-btn').addEventListener('click', () => {
+            window.open('https://turbowarp.org/editor', 'turbowarp_official', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
+        });
+    </script>
+</body>
+</html>
