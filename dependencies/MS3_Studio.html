@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevDash Pro | Developer Workspace</title>
+    
+    <!-- Tailwind CSS for professional styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter for UI, Fira Code for Editor -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for professional iconography -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- CodeMirror Core CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/lint.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css">
+
+    <style>
+        :root {
+            --bg-darker: #0f111a;
+            --bg-dark: #1a1c29;
+            --bg-panel: #24273a;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-darker);
+            color: var(--text-main);
+            overflow: hidden; /* Prevent body scroll, manage in panels */
+        }
+
+        /* Custom Scrollbar for a polished look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* IDE specific styling */
+        .CodeMirror {
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            height: 100% !important;
+            border-radius: 0.5rem;
+            background-color: var(--bg-dark) !important;
+        }
+        .CodeMirror-gutters {
+            background-color: var(--bg-darker) !important;
+            border-right: 1px solid #334155 !important;
+        }
+
+        /* Layout Grid */
+        .app-container {
+            display: grid;
+            grid-template-columns: 60px 1fr;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Navigation Sidebar */
+        .nav-sidebar {
+            background-color: var(--bg-darker);
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 1rem;
+            gap: 1rem;
+            z-index: 50;
+        }
+
+        .nav-item {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            color: var(--text-main);
+            background-color: var(--bg-panel);
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+            background-color: #1e1b4b;
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 24px;
+            width: 3px;
+            background-color: var(--accent);
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* Tooltips */
+        .nav-item::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 100%;
+            margin-left: 10px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            border: 1px solid #334155;
+            z-index: 100;
+        }
+        .nav-item:hover::after {
+            opacity: 1;
+        }
+
+        /* Content Panels */
+        .content-area {
+            position: relative;
+            background-color: var(--bg-dark);
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Splitter for IDE */
+        .ide-grid {
+            display: flex;
+            height: calc(100% - 48px); /* minus header */
+            background-color: #1e293b;
+        }
+        
+        .ide-pane {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .ide-resizer {
+            width: 4px;
+            background-color: #334155;
+            cursor: col-resize;
+            z-index: 10;
+            transition: background-color 0.2s;
+        }
+        .ide-resizer:hover, .ide-resizer.active {
+            background-color: var(--accent);
+        }
+
+        /* Animations */
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.4)); }
+            50% { filter: drop-shadow(0 0 25px rgba(99, 102, 241, 0.8)); }
+        }
+        .animate-glow {
+            animation: pulse-glow 3s infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Sidebar Navigation -->
+        <nav class="nav-sidebar">
+            <!-- App Logo/Brand -->
+            <div class="mb-4 text-indigo-500 text-xl font-bold">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            
+            <!-- Navigation Items -->
+            <div class="nav-item active" data-target="panel-turbowarp" data-tooltip="Turbowarp Engine">
+                <i class="fa-solid fa-cat text-lg"></i>
+            </div>
+            <div class="nav-item" data-target="panel-webide" data-tooltip="Web Studio (HTML/JS/CSS)">
+                <i class="fa-solid fa-code text-lg"></i>
+            </div>
+            <div class="nav-item" data-target="panel-emurt" data-tooltip="EMU/RT Engine">
+                <i class="fa-solid fa-microchip text-lg"></i>
+            </div>
+
+            <div class="mt-auto mb-4 nav-item" data-tooltip="Settings">
+                <i class="fa-solid fa-gear text-lg"></i>
+            </div>
+        </nav>
+
+        <main class="content-area">
+            
+            <!-- PANEL 1: Block Engine Workspace -->
+            <div id="panel-turbowarp" class="panel active">
+                <div class="h-12 bg-[#0f111a] border-b border-slate-800 flex items-center px-4 justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-cat text-indigo-400"></i>
+                        <span class="font-medium text-sm text-slate-200">Block Engine Workspace</span>
+                        <span class="ml-2 text-xs text-rose-400 px-2 py-0.5 bg-rose-900/30 rounded border border-rose-800">Note: Official TW blocks iframes</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label for="tw-source" class="text-xs text-slate-400">Engine:</label>
+                        <select id="tw-source" class="text-xs bg-slate-800 text-slate-200 px-2 py-1 rounded border border-slate-700 outline-none focus:border-indigo-500 cursor-pointer transition">
+                            <option value="https://studio.penguinmod.com/editor.html">PenguinMod (TW Fork)</option>
+                            <option value="https://snail-ide.com/editor/">Snail IDE (TW Fork)</option>
+                        </select>
+                        <button id="tw-popup-btn" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded shadow transition flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Official TW
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 w-full h-full bg-black relative">
+                    <!-- Embedded Block Engine Iframe -->
+                    <iframe 
+                        id="turbowarp-frame"
+                        src="https://studio.penguinmod.com/editor.html" 
+                        allowtransparency="true" 
+                        width="100%" 
+                        height="100%" 
+                        frameborder="0" 
+                        scrolling="no" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
+
+            <!-- PANEL 2: Web IDE (HTML/JS/CSS) -->
+            <div id="panel-webide" class="panel">
+                <div class="h-12 bg-[#0f111a] border-b border-slate-800 flex items-center px-4 justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-file-code text-indigo-400"></i>
+                        <span class="font-medium text-sm text-slate-200">index.html</span>
+                        <span class="ml-2 text-xs text-slate-500 px-2 py-0.5 bg-slate-800/50 rounded border border-slate-700">Auto-fill (Ctrl+Space) & Linting Enabled</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="format-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition">
+                            <i class="fa-solid fa-align-left mr-1"></i> Format
+                        </button>
+                        <button id="run-btn" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded shadow transition">
+                            <i class="fa-solid fa-play mr-1"></i> Run Preview
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="ide-grid">
+                    <!-- Editor Section -->
+                    <div class="ide-pane bg-[#1a1c29]" id="editor-pane" style="width: 50%;">
+                        <div class="h-8 bg-[#1e293b] flex items-center px-3 text-xs text-slate-400 border-b border-slate-700 shrink-0">
+                            <i class="fa-brands fa-html5 text-orange-400 mr-2"></i> Editor
+                        </div>
+                        <div class="flex-1 overflow-hidden p-2">
+                            <!-- Textarea will be replaced by CodeMirror -->
+                            <textarea id="code-editor"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Resizer -->
+                    <div class="ide-resizer" id="ide-resizer"></div>
+
+                    <!-- Preview Section -->
+                    <div class="ide-pane bg-[#1a1c29]" id="preview-container" style="flex: 1;">
+                        <div class="h-8 bg-[#1e293b] flex items-center justify-between px-3 text-xs text-slate-400 border-b border-slate-700 shrink-0">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-desktop text-blue-400 mr-2"></i> Live Output
+                            </div>
+                            <button id="fullscreen-preview-btn" class="hover:text-white transition" title="Fullscreen Preview">
+                                <i class="fa-solid fa-expand"></i>
+                            </button>
+                        </div>
+                        <div class="flex-1 bg-white relative w-full h-full">
+                            <!-- Sandbox Iframe for Output -->
+                            <iframe id="preview-frame" class="w-full h-full border-0 bg-white" allowfullscreen></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 3: EMU/RT Placeholder -->
+            <div id="panel-emurt" class="panel">
+                <div class="h-12 bg-[#0f111a] border-b border-slate-800 flex items-center px-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-microchip text-indigo-400"></i>
+                        <span class="font-medium text-sm text-slate-200">EMU/RT Engine</span>
+                    </div>
+                </div>
+                
+                <div class="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-[#0f111a] to-[#1e1b4b]">
+                    <div class="relative mb-8 animate-glow">
+                        <div class="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 rounded-full"></div>
+                        <i class="fa-solid fa-microchip text-8xl text-indigo-400 relative z-10 drop-shadow-lg"></i>
+                    </div>
+                    
+                    <h1 class="text-4xl font-bold text-white mb-4 tracking-tight">EMU/RT</h1>
+                    
+                    <div class="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-full mb-6 shadow-inner">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                        </span>
+                        <span class="text-amber-400 font-medium text-sm tracking-wide uppercase">In Active Development</span>
+                    </div>
+                    
+                    <p class="text-slate-400 max-w-md text-center leading-relaxed">
+                        The next-generation EMU/RT environment is currently being engineered. Advanced emulation and real-time execution capabilities are coming soon.
+                    </p>
+                    
+                    <button class="mt-8 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-indigo-900/50 opacity-50 cursor-not-allowed">
+                        Join Waitlist
+                    </button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts for CodeMirror (Hints, Linting, Modes) -->
+    <!-- JSHint for Javascript Linting (Error detection) -->
+    <script src="https://unpkg.com/jshint@2.13.6/dist/jshint.js"></script>
+    <!-- HTMLHint for HTML Linting -->
+    <script src="https://unpkg.com/htmlhint@1.1.3/dist/htmlhint.js"></script>
+    <!-- CSSLint for CSS Linting -->
+    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>
+
+    <!-- CodeMirror Core and Addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    
+    <!-- Language Modes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+    
+    <!-- Autocomplete (Hint) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/xml-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/html-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/css-hint.min.js"></script>
+    
+    <!-- Error Detection (Lint) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/javascript-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/html-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/css-lint.min.js"></script>
+
+    <!-- Formatting & brackets -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
+
+    <script>
+        // --- Navigation Logic ---
+        const navItems = document.querySelectorAll('.nav-item');
+        const panels = document.querySelectorAll('.panel');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Ignore settings button for now
+                if(!item.hasAttribute('data-target')) return;
+
+                // Update active state in nav
+                navItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+
+                // Update active panel
+                const targetId = item.getAttribute('data-target');
+                panels.forEach(panel => {
+                    if (panel.id === targetId) {
+                        panel.classList.add('active');
+                    } else {
+                        panel.classList.remove('active');
+                    }
+                });
+
+                // Refresh CodeMirror if IDE panel is shown
+                if(targetId === 'panel-webide' && editor) {
+                    setTimeout(() => editor.refresh(), 50);
+                }
+            });
+        });
+
+        // --- Web IDE Logic (CodeMirror) ---
+        
+        // Default Template Document
+        const defaultCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Web Studio Project</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Hello from Web Studio!</h1>
+        <p>Edit HTML, CSS, and JS. Try making a deliberate syntax error to test linting.</p>
+        <button id="actionBtn">Click Me</button>
+    </div>
+
+    <script>
+        document.getElementById('actionBtn').addEventListener('click', () => {
+            const el = document.querySelector('h1');
+            el.style.color = '#' + Math.floor(Math.random()*16777215).toString(16);
+        });
+    <\/script>
+</body>
+</html>`;
+
+        const textarea = document.getElementById('code-editor');
+        textarea.value = defaultCode;
+
+        // Initialize Editor
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: "htmlmixed",
+            theme: "material-darker",
+            lineNumbers: true,
+            autoCloseTags: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            indentUnit: 4,
+            gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers"],
+            lint: true, // Enables error detection
+            extraKeys: {
+                "Ctrl-Space": "autocomplete" // Autocomplete trigger
+            }
+        });
+
+        // Live Preview Updater
+        const previewFrame = document.getElementById('preview-frame');
+        
+        function updatePreview() {
+            const content = editor.getValue();
+            const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+            
+            previewDoc.open();
+            // Wrap in a generic wrapper to prevent extreme parent window hijacking, though sandboxing is better for real prod
+            previewDoc.write(content);
+            previewDoc.close();
+        }
+
+        // Debounce logic to prevent crashing on fast typing
+        let debounceTimer;
+        editor.on("change", () => {
+        // --- Fullscreen Preview Logic ---
+        const fullscreenBtn = document.getElementById('fullscreen-preview-btn');
+        const previewContainer = document.getElementById('preview-container');
+        const fullscreenIcon = fullscreenBtn.querySelector('i');
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                // Request fullscreen on the container to keep the header and styling
+                previewContainer.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Listen for fullscreen changes to update the icon
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenIcon.classList.remove('fa-expand');
+                fullscreenIcon.classList.add('fa-compress');
+            } else {
+                fullscreenIcon.classList.remove('fa-compress');
+                fullscreenIcon.classList.add('fa-expand');
+            }
+        });
+
+        // --- Block Engine (Turbowarp Workaround) Logic ---
+        const twSourceSelect = document.getElementById('tw-source');
+        const twFrame = document.getElementById('turbowarp-frame');
+        const twPopupBtn = document.getElementById('tw-popup-btn');
+        
+        if (twSourceSelect && twFrame) {
+            twSourceSelect.addEventListener('change', (e) => {
+                twFrame.src = e.target.value;
+            });
+        }
+
+        if (twPopupBtn) {
+            twPopupBtn.addEventListener('click', () => {
+                // Open official turbowarp in a popup window to bypass iframe block
+                // Settings ensure it opens like a standalone app window on most desktop browsers
+                window.open('https://turbowarp.org/editor', 'turbowarp_window', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no');
+            });
+        }
+
+        // --- IDE Resizer Logic ---
+        const resizer = document.getElementById('ide-resizer');
+        const editorPane = document.getElementById('editor-pane');
+        const previewPane = document.getElementById('preview-container');
+        const ideGrid = document.querySelector('.ide-grid');
+        
+        let isResizing = false;
+
+        if (resizer) {
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                resizer.classList.add('active');
+                // Prevent iframes from stealing mouse events during drag
+                document.getElementById('preview-frame').style.pointerEvents = 'none';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                // Calculate new width percentage
+                const gridRect = ideGrid.getBoundingClientRect();
+                let newWidth = ((e.clientX - gridRect.left) / gridRect.width) * 100;
+                
+                // Constrain between 10% and 90%
+                newWidth = Math.max(10, Math.min(newWidth, 90));
+                
+                editorPane.style.width = `${newWidth}%`;
+                
+                // Trigger CodeMirror refresh so it adjusts to new container size
+                if (editor) editor.refresh();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    resizer.classList.remove('active');
+                    document.getElementById('preview-frame').style.pointerEvents = 'auto';
+                }
+            });
+        }
+
+        // Initial render
+        setTimeout(updatePreview, 100);
+
+    </script>
+</body>
+</html>
