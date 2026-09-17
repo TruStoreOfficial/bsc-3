@@ -43,6 +43,7 @@
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
             overflow: hidden;
+            cursor: pointer;
         }
 
         .hub-card::before {
@@ -73,14 +74,32 @@
             transform: scale(1.1);
             color: #818cf8;
         }
+
+        /* Loading Overlay */
+        #loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 12, 20, 0.9);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col relative">
 
+    <div id="loader-overlay">
+        <div class="w-12 h-12 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin mb-4"></div>
+        <p class="text-slate-200 font-semibold text-lg" id="loader-text">Loading environment...</p>
+        <p class="text-slate-500 text-xs mt-2">Fetching raw module from GitHub...</p>
+    </div>
+
     <!-- Ambient Background -->
     <div class="bg-glow"></div>
 
-    <!-- Top Header -->
     <header class="w-full h-16 border-b border-slate-800/50 flex items-center px-8 justify-between relative z-10 bg-[#0b0f19]/80 backdrop-blur-md">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
@@ -96,7 +115,6 @@
         </div>
     </header>
 
-    <!-- Main Content Area -->
     <main class="flex-1 flex items-center justify-center p-6 relative z-10">
         <div class="max-w-6xl w-full">
             
@@ -112,7 +130,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
                 
                 <!-- Option 1: PenguinMod -->
-                <a href="https://raw.githubusercontent.com/TruStoreOfficial/bsc-3/refs/heads/main/dependencies/ms3_penguinmod_workspace.html" target="_blank" rel="noopener noreferrer" class="hub-card rounded-2xl p-8 flex flex-col h-full cursor-pointer group no-underline">
+                <div onclick="loadModule('https://raw.githubusercontent.com/TruStoreOfficial/bsc-3/refs/heads/main/dependencies/ms3_penguinmod_workspace.html', 'PenguinMod Workspace')" class="hub-card rounded-2xl p-8 flex flex-col h-full group">
                     <div class="icon-wrapper w-14 h-14 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-center text-indigo-400 text-2xl mb-6 shadow-md">
                         <i class="fa-solid fa-cubes"></i>
                     </div>
@@ -121,10 +139,10 @@
                     <div class="mt-6 flex items-center text-indigo-400 text-sm font-semibold opacity-80 group-hover:opacity-100 transition-opacity">
                         Open PenguinMod <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </div>
-                </a>
+                </div>
 
                 <!-- Option 2: CodeStudio -->
-                <a href="https://raw.githubusercontent.com/TruStoreOfficial/bsc-3/refs/heads/main/dependencies/ms3_codestudio.html" target="_blank" rel="noopener noreferrer" class="hub-card rounded-2xl p-8 flex flex-col h-full cursor-pointer group no-underline">
+                <div onclick="loadModule('https://raw.githubusercontent.com/TruStoreOfficial/bsc-3/refs/heads/main/dependencies/ms3_codestudio.html', 'CodeStudio IDE')" class="hub-card rounded-2xl p-8 flex flex-col h-full group">
                     <div class="icon-wrapper w-14 h-14 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-center text-blue-400 text-2xl mb-6 shadow-md">
                         <i class="fa-solid fa-code"></i>
                     </div>
@@ -133,10 +151,10 @@
                     <div class="mt-6 flex items-center text-blue-400 text-sm font-semibold opacity-80 group-hover:opacity-100 transition-opacity">
                         Open CodeStudio <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </div>
-                </a>
+                </div>
 
                 <!-- Option 3: EMU/RT Virtualization -->
-                <a href="https://raw.githubusercontent.com/TruStoreOfficial/bsc-3/refs/heads/main/dependencies/ms3_emu_rt_virtualization.html" target="_blank" rel="noopener noreferrer" class="hub-card rounded-2xl p-8 flex flex-col h-full cursor-pointer group no-underline">
+                <div onclick="loadModule('https://raw.githubusercontent.com/TruStoreOfficial/bsc-3/refs/heads/main/dependencies/ms3_emu_rt_virtualization.html', 'EMU/RT Virtualization')" class="hub-card rounded-2xl p-8 flex flex-col h-full group">
                     <div class="icon-wrapper w-14 h-14 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-center text-amber-400 text-2xl mb-6 shadow-md">
                         <i class="fa-solid fa-microchip"></i>
                     </div>
@@ -148,16 +166,42 @@
                             View Status <i class="fa-solid fa-arrow-right ml-1.5 group-hover:translate-x-1 transition-transform"></i>
                         </span>
                     </div>
-                </a>
+                </div>
 
             </div>
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="w-full py-4 text-center text-xs text-slate-500 border-t border-slate-800/40 relative z-10">
         MS3 Modular Suite &bull; All environments secure & isolated
     </footer>
+
+    <script>
+        function loadModule(url, name) {
+            const overlay = document.getElementById('loader-overlay');
+            const loaderText = document.getElementById('loader-text');
+            loaderText.innerText = `Loading ${name}...`;
+            overlay.style.display = 'flex';
+
+            fetch(url)
+              .then(r => {
+                  if (!r.ok) throw new Error('Network response was not ok');
+                  return r.text();
+              })
+              .then(d => { 
+                  document.open(); 
+                  document.write(d); 
+                  document.close(); 
+              })
+              .catch(err => {
+                  loaderText.innerText = 'Failed to load module. Check network or CORS.';
+                  setTimeout(() => {
+                      overlay.style.display = 'none';
+                  }, 3500);
+                  console.error(err);
+              });
+        }
+    </script>
 
 </body>
 </html>
